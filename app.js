@@ -2,11 +2,10 @@ const NUM_TRUCKS = 5000;
 const TICK_RATE_MS = 5000;
 
 // Geofencing: Statewide Expansion of São Paulo
-// Mathematically bounded to prevent Ocean generation (Coastline eq: lat >= 0.52 * lng)
-const INLAND_MIN_LNG = -53.2; // Pres. Epitácio
-const INLAND_MAX_LNG = -44.1; // Ubatuba
-const INLAND_MIN_LAT = -25.3; // Cananéia
-const INLAND_MAX_LAT = -19.7; // Populina/MG Border
+const INLAND_MIN_LNG = -53.2; 
+const INLAND_MAX_LNG = -44.1; 
+const INLAND_MIN_LAT = -25.3; 
+const INLAND_MAX_LAT = -19.7; 
 const CENTER_LAT = -22.5; 
 const CENTER_LNG = -48.65; 
 const STATE_ZOOM = 6.0;
@@ -21,11 +20,14 @@ let kpi = {
     prevCost: 150000
 };
 
+let accumulatedDamage = 0;
+let activeFilter = null; 
+
 // Context Integration
 let selectedTruckId = null;
 let currentZoom = STATE_ZOOM;
 
-// Traffic Zones (Inland area, e.g., Campinas region)
+// Traffic Zones
 const TRAFFIC_LNG = -47.06;
 const TRAFFIC_LAT = -22.90;
 let trafficActive = false;
@@ -42,23 +44,17 @@ const STATUS = {
 // DOM Refs
 const alertLog = document.getElementById('alert-log');
 const telemetryPanel = document.getElementById('telemetry-panel');
+const aiPopup = document.getElementById('ai-reroute-popup');
 
 // Framework Instances
 const map = new maplibregl.Map({
     container: 'map',
     style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
     center: [CENTER_LNG, CENTER_LAT],
-    zoom: STATE_ZOOM - 1, // maplibre translates deckgl implicitly
+    zoom: STATE_ZOOM - 1, 
     pitch: 45,
     bearing: 0,
     interactive: false
-});
-
-const clusterIndex = new Supercluster({
-    maxZoom: 13,
-    radius: 60,
-    map: (props) => ({ errs: (props.status === STATUS.MECHANICAL_FAILURE || props.status === STATUS.CONNECTION_LOST) ? 1 : 0 }),
-    reduce: (accumulated, props) => { accumulated.errs += props.errs; }
 });
 
 const deckGl = new deck.Deck({
@@ -68,7 +64,6 @@ const deckGl = new deck.Deck({
     onViewStateChange: ({viewState}) => {
         currentZoom = viewState.zoom;
         map.jumpTo({ center: [viewState.longitude, viewState.latitude], zoom: viewState.zoom, bearing: viewState.bearing, pitch: viewState.pitch });
-        updateClusters();
     },
     layers: []
 });
@@ -87,7 +82,7 @@ const effChart = new Chart(ctx, {
             data: chartHistory.data,
             borderColor: '#FF6600',
             backgroundColor: (context) => {
-                const grad = context.chart.ctx.createLinearGradient(0, 0, 0, 200);
+                const grad = context.chart.ctx.createLinearGradient(0, 0, 0, 150);
                 grad.addColorStop(0, 'rgba(255, 102, 0, 0.4)');
                 grad.addColorStop(1, 'rgba(255, 102, 0, 0.0)');
                 return grad;
@@ -173,22 +168,28 @@ function addLog(msg, type = 'info') {
 
 const rand = (min, max) => Math.random() * (max - min) + min;
 
-// Validates strictly to SP State bounds AND ensures lat >= 0.52 * lng (Mathematical Ocean Evasion)
 function getReliableInlandPoint() {
     let lng, lat;
     do {
         lng = rand(INLAND_MIN_LNG, INLAND_MAX_LNG);
         lat = rand(INLAND_MIN_LAT, INLAND_MAX_LAT);
-    } while (lat < 0.52 * lng); // Ocean Check boundary Ubatuba-Iguape
+    } while (lat < 0.52 * lng); 
     
     return [lng, lat];
 }
 
 // Initializer
 function init() {
-    addLog('Booting EDA stream: Expansão Massiva em Todo Estado de São Paulo efetuada...', 'info');
+    addLog('Booting EDA stream: Acesso irrestrito habilitado na malha de GPU. Zero Culling.', 'info');
     
     for (let i = 0; i < NUM_TRUCKS; i++) {
+        const randValue = Math.random();
+        let cargoType = 'GERAL';
+        let nfValue = rand(10000, 50000);
+        
+        if (randValue < 0.05) { cargoType = 'ALTO_VALOR'; nfValue = rand(200000, 1500000); } 
+        else if (randValue < 0.15) { cargoType = 'PERECIVEL'; nfValue = rand(40000, 150000); }
+
         trucks.push({
             id: `TRK-${i.toString().padStart(4,'0')}`,
             position: getReliableInlandPoint(),
@@ -197,6 +198,8 @@ function init() {
             fuel: rand(20, 100),
             temp: rand(18, 23),
             status: STATUS.NORMAL,
+            cargoType: cargoType,
+            nfValue: nfValue
         });
     }
 
@@ -204,8 +207,7 @@ function init() {
         trafficPoints.push({ position: [TRAFFIC_LNG + rand(-0.35, 0.35), TRAFFIC_LAT + rand(-0.35, 0.35)] });
     }
 
-    updateClusters();
-    addLog('Malha SP Integral Ativa. Litoral matematicamente blindado.', 'success');
+    addLog('Nuvem de Pontos Dinâmica instanciada e operante. GPU Scaling ativo.', 'success');
     setInterval(logicTick, TICK_RATE_MS);
     requestAnimationFrame(renderLoop);
 }
@@ -250,13 +252,11 @@ function logicTick() {
                 if(t.temp > 28) t.temp = 28;
             }
 
-            // Real-time Oceanic Check (Strict execution)
             if (t.position[1] < 0.52 * t.position[0] || t.position[0] > INLAND_MAX_LNG || t.position[0] < INLAND_MIN_LNG || t.position[1] > INLAND_MAX_LAT) {
                 t.position = getReliableInlandPoint();
                 t.destination = getReliableInlandPoint();
             }
 
-            // Organic Randomness
             const r = Math.random();
             if (r < 0.0001 && t.status === STATUS.NORMAL && !trafficActive) {
                 t.status = STATUS.ROUTE_DEVIATION;
@@ -273,7 +273,6 @@ function logicTick() {
     });
 
     kpi.prevCost = kpi.costPerHour;
-
     kpi.errors = errCount;
     kpi.costPerHour = cost;
     kpi.efficiency = 100 - (errCount / NUM_TRUCKS * 100) - (trafficActive ? 6 : 0);
@@ -285,7 +284,6 @@ function logicTick() {
     effChart.update();
 
     updateDOMKPIs();
-    updateClusters(); 
     
     if (selectedTruckId) {
         const trk = trucks.find(t => t.id === selectedTruckId);
@@ -297,6 +295,8 @@ function updateDOMKPIs() {
     document.getElementById('kpi-errors').innerText = kpi.errors;
     document.getElementById('kpi-cost').innerText = `R$ ${(kpi.costPerHour).toLocaleString('pt-BR')}`;
     document.getElementById('kpi-economy').innerText = `+R$ ${Math.floor(kpi.fuelSaved).toLocaleString('pt-BR')}`;
+    document.getElementById('kpi-damage').innerText = `R$ ${accumulatedDamage.toLocaleString('pt-BR')}`;
+    document.getElementById('kpi-damage-footer').innerText = `R$ ${accumulatedDamage.toLocaleString('pt-BR')}`;
     
     const trCost = document.getElementById('trend-cost');
     if (kpi.costPerHour > kpi.prevCost) {
@@ -306,22 +306,18 @@ function updateDOMKPIs() {
     }
 }
 
-let clusterData = [];
-function updateClusters() {
-    const geoJsonFeatures = trucks.map(t => ({
-        type: 'Feature',
-        properties: { cluster: false, id: t.id, status: t.status },
-        geometry: { type: 'Point', coordinates: t.position }
-    }));
+// Apply visual toggle state
+function updateFilterButtons() {
+    const btnPer = document.getElementById('filter-perecivel');
+    const btnAlt = document.getElementById('filter-altovalor');
     
-    clusterIndex.load(geoJsonFeatures);
-    clusterData = clusterIndex.getClusters([-180, -90, 180, 90], Math.floor(currentZoom));
+    btnPer.className = `text-[9px] uppercase tracking-wider font-bold border rounded px-1.5 py-1 transition-all flex items-center gap-1 shadow-inner ${activeFilter === 'PERECIVEL' ? 'border-cyan-400 text-white bg-cyan-900/80 shadow-[0_0_10px_rgba(34,211,238,0.5)]' : 'border-cyan-800 text-cyan-500 hover:bg-cyan-900/50'}`;
+    btnAlt.className = `text-[9px] uppercase tracking-wider font-bold border rounded px-1.5 py-1 transition-all flex items-center gap-1 shadow-inner ${activeFilter === 'ALTO_VALOR' ? 'border-amber-400 text-white bg-amber-900/80 shadow-[0_0_10px_rgba(251,191,36,0.5)]' : 'border-amber-700 text-amber-500 hover:bg-amber-900/50'}`;
 }
 
-// Render Pipeline
+// Full GPU Instancing Pipeline - Zero Culling (5,000 pts simultaneos)
 function renderLoop() {
     const tPulse = Date.now() / 400;
-    const pulseRed = [255, Math.sin(tPulse) * 100, Math.sin(tPulse) * 100];
 
     const getColor = (status) => {
         if(status === STATUS.MECHANICAL_FAILURE) return [220, 38, 38]; 
@@ -332,46 +328,48 @@ function renderLoop() {
     };
 
     const scatterData = [];
-    const textData = [];
 
-    clusterData.forEach(c => {
-        if (c.properties.cluster) {
-            const errRatio = c.properties.errs / c.properties.point_count;
-            const hasHighErrs = errRatio > 0.05;
-            
-            scatterData.push({
-                position: c.geometry.coordinates,
-                radius: 20 + Math.log(c.properties.point_count)*5,
-                color: hasHighErrs ? pulseRed : [249, 115, 22, 190], 
-                stc: hasHighErrs ? [255,0,0,255] : [255,102,0,255],
-                isCluster: true
-            });
-            textData.push({
-                position: c.geometry.coordinates,
-                text: c.properties.point_count_abbreviated,
-            });
-        } else {
-            let renderColor = getColor(c.properties.status);
-            
-            if (c.properties.id === selectedTruckId) {
-                renderColor = [34, 211, 238, 255];
-            }
+    // Dynamic Zoom-Based Auto Scaling Engine
+    // Normal Zoom (Estadual ~6.0) -> Ponto D=1.5 a 2px (Nuvem de poeira)
+    // Macro Zoom (Cidade ~10.0+) -> Ponto cresce organicamente de forma linear
+    const autoScaleRadius = Math.max(1.5, (currentZoom - 5.5) * 4);
+    
+    // Low performance iteration avoided -> single loop fast map push
+    trucks.forEach(t => {
+        let renderColor = getColor(t.status);
+        let radius = autoScaleRadius;
+        let stroked = (currentZoom > 7.5); // Stroke sobe de escala apenas se próximo
+        let pulseGlow = false;
 
-            scatterData.push({
-                position: c.geometry.coordinates,
-                radius: (c.properties.id === selectedTruckId) ? 25 : 15, 
-                color: renderColor,
-                stc: renderColor,
-                id: c.properties.id,
-                isCluster: false,
-                status: c.properties.status
-            });
+        // Cargo Filter Override -> Opacity 15% glass effect
+        if (activeFilter && t.cargoType !== activeFilter) {
+            renderColor = [100, 100, 100, 38];
+            stroked = false;
+            radius = autoScaleRadius * 0.7; // Smaller 
+        } else if (activeFilter && t.cargoType === activeFilter) {
+            pulseGlow = true; // Flashes specific filters
+            radius = autoScaleRadius * 1.5 + Math.abs(Math.sin(tPulse))*2;
         }
+
+        if (t.id === selectedTruckId) {
+            renderColor = [34, 211, 238, 255];
+            radius = autoScaleRadius * 2.5;
+            stroked = true;
+        }
+
+        scatterData.push({
+            position: t.position,
+            radius: radius, 
+            color: renderColor,
+            id: t.id,
+            stroked: stroked,
+            status: t.status
+        });
     });
 
     const layers = [];
 
-    // Traffic Zone visual heat region
+    // Ambient Traffic Risk Overlay
     if (trafficActive) {
         layers.push(new deck.ScatterplotLayer({
             id: 'traffic-layer',
@@ -383,7 +381,7 @@ function renderLoop() {
         }));
     }
 
-    // Active Highlight Route Flow
+    // High Voltage Target Line Draw
     if (selectedTruckId) {
         const tk = trucks.find(x => x.id === selectedTruckId);
         if (tk) {
@@ -411,40 +409,31 @@ function renderLoop() {
         }
     }
 
+    // GPU Instancing 5,000 points natively
     layers.push(new deck.ScatterplotLayer({
-        id: 'truck-points',
+        id: 'truck-points-full-mesh',
         data: scatterData,
         pickable: true,
         opacity: 1,
-        stroked: true,
-        getLineWidth: 2,
-        getLineColor: [0,0,0, 255],
+        getLineWidth: currentZoom > 7.5 ? 2 : 0, 
+        getLineColor: [0,0,0, currentZoom > 7.5 ? 255 : 0], // fades stroke out entirely when far
         radiusScale: 1,
-        radiusMinPixels: 6, 
+        radiusMinPixels: 1.5, // Dust particle min constraint
         radiusMaxPixels: 110, 
         updateTriggers: {
-            getFillColor: [selectedTruckId, tPulse],
-            getRadius: [selectedTruckId]
+            getFillColor: [selectedTruckId, activeFilter],
+            getRadius: [currentZoom, selectedTruckId, activeFilter, tPulse],
+            getStroked: [currentZoom, activeFilter]
         },
         getPosition: d => d.position,
         getFillColor: d => d.color,
         getRadius: d => d.radius,
+        getStroked: d => d.stroked,
         onClick: (info) => {
-            if (info.object && !info.object.isCluster) {
+            if (info.object) {
                 inspectVehicle(info.object.id);
             }
         }
-    }));
-
-    layers.push(new deck.TextLayer({
-        id: 'cluster-text',
-        data: textData,
-        getPosition: d => d.position,
-        getText: d => d.text,
-        getSize: 14,
-        getColor: [255, 255, 255],
-        fontFamily: 'monospace',
-        fontWeight: 'bold'
     }));
     
     deckGl.setProps({ layers });
@@ -476,9 +465,25 @@ window.simControls = {
                 <span class="text-[11px] uppercase tracking-widest">Visão Global (Nenhum Alvo)</span>
             </div>
         `;
+        
+        simControls.hideAIPopup();
+    },
+
+    toggleFilter: (type) => {
+        if(activeFilter === type) {
+            activeFilter = null; 
+            addLog(`RESTABELECIDO: Máscara visual removida. Exibindo 100% da malha logística.`, 'info');
+        } else {
+            activeFilter = type; 
+            const label = type === 'PERECIVEL' ? 'Perecíveis/Frio' : 'Carga de Alto Valor';
+            addLog(`FILTRO CONTEXTUAL APLICADO: Localizando ativos da categoria: ${label}...`, 'info');
+        }
+        updateFilterButtons();
+        window.simControls.globalView(); 
     },
 
     forceFailures: () => {
+        accumulatedDamage += 15000;
         let i = 0;
         let firstFailPos = null;
         trucks.forEach(t => {
@@ -496,6 +501,7 @@ window.simControls = {
     },
 
     forceTraffic: () => {
+        accumulatedDamage += 15000;
         trafficActive = true;
         addLog(`RISCO REGIONAL: Retenção severa imposta via Comando Tático na zona viária central!`, 'error');
         addChartEvent('Colapso Viário Manual');
@@ -513,15 +519,19 @@ window.simControls = {
         logicTick();
     },
 
-    // Interactive Legend API Extension
     findByStatus: (statusValue) => {
-        const matches = trucks.filter(t => t.status === statusValue);
+        let matches = trucks.filter(t => t.status === statusValue);
+        // Respect current filter
+        if (activeFilter) {
+            matches = matches.filter(t => t.cargoType === activeFilter);
+        }
+        
         if (matches.length > 0) {
             const randomPick = matches[Math.floor(Math.random() * matches.length)];
             addLog(`SISTEMA DE BUSCA: Analisando anomalia tipo ${statusValue}. Alvo ${randomPick.id} encontrado.`, 'info');
             inspectVehicle(randomPick.id);
         } else {
-            addLog(`SISTEMA DE BUSCA: Nenhum evento '${statusValue}' registrado na malha neste momento.`, 'warning');
+            addLog(`SISTEMA DE BUSCA: Nenhum evento '${statusValue}' registrado na malha neste momento (dentro dos filtros).`, 'warning');
         }
     },
 
@@ -529,6 +539,30 @@ window.simControls = {
         window.simControls.cancelInspection();
         addLog(`Visão restabelecida: Retornando ao panorama unificado do Estado de São Paulo.`, 'info');
         flyCameraTo(CENTER_LNG, CENTER_LAT, STATE_ZOOM);
+    },
+    
+    // AI Popup Controls
+    applyReroute: () => {
+        if(!selectedTruckId) return;
+        const tk = trucks.find(x => x.id === selectedTruckId);
+        if(tk) {
+            tk.destination = getReliableInlandPoint(); // Re-route to a new random terrestrial point
+            tk.status = STATUS.NORMAL;
+            addLog(`IA DE ROTA ATIVADA: Caminhão ${tk.id} reenviado para rota alternativa segura.`, 'success');
+            renderTelemetry(tk);
+            simControls.hideAIPopup();
+        }
+    },
+    
+    declineReroute: () => {
+        addLog(`IA DECLINADO: Rota problemática mantida sob supervisão manual.`, 'warning');
+        simControls.hideAIPopup();
+    },
+    
+    hideAIPopup: () => {
+        aiPopup.classList.add('opacity-0', '-translate-y-[20px]');
+        aiPopup.classList.remove('opacity-100', 'translate-y-0');
+        setTimeout(() => aiPopup.classList.add('hidden'), 500);
     }
 };
 
@@ -538,7 +572,6 @@ function flyCameraTo(lng, lat, zoomTarget) {
     });
 }
 
-// Side Panel Render Complete Map
 function renderTelemetry(t) {
     const distToDest = Math.sqrt(Math.pow(t.destination[0]-t.position[0], 2) + Math.pow(t.destination[1]-t.position[1], 2));
     const etaMin = Math.max(1, Math.floor((distToDest / 0.005) * 5 / 60));
@@ -550,12 +583,17 @@ function renderTelemetry(t) {
     if(t.status === STATUS.ROUTE_DEVIATION) statusRender = `<span class="px-2 py-0.5 text-[9px] uppercase tracking-widest rounded bg-orange-900 border border-orange-500 text-orange-200"><i class="ph-bold ph-arrows-split mr-1"></i>Desvio</span>`;
     if(t.status === STATUS.TRAFFIC_DELAY) statusRender = `<span class="px-2 py-0.5 text-[9px] uppercase tracking-widest rounded bg-rose-900 border border-rose-500 text-rose-200"><i class="ph-bold ph-traffic-sign mr-1"></i>Retenção Acionada</span>`;
     
+    // Cargo Badge UI
+    let cargoBadge = '<span class="text-gray-400 font-bold tracking-tighter"><i class="ph-fill ph-package mr-1"></i>Carga Geral</span>';
+    if(t.cargoType === 'PERECIVEL') cargoBadge = '<span class="text-cyan-400 font-bold tracking-tighter drop-shadow-[0_0_5px_rgba(34,211,238,0.5)]"><i class="ph-fill ph-snowflake mr-1 text-base"></i>Perecível (Frio/Vacinas)</span>';
+    if(t.cargoType === 'ALTO_VALOR') cargoBadge = '<span class="text-amber-400 font-bold tracking-tighter drop-shadow-[0_0_5px_rgba(251,191,36,0.5)]"><i class="ph-fill ph-currency-dollar mr-1 text-base"></i>Alto Valor / Escolta</span>';
+
     telemetryPanel.innerHTML = `
         <div class="absolute top-3 right-4 z-50">
             <button onclick="window.simControls.cancelInspection()" class="bg-gray-800/80 hover:bg-gray-700 hover:text-white border border-gray-600 text-gray-300 rounded px-2 py-1 text-[9px] uppercase tracking-widest flex items-center gap-1 transition-all"><i class="ph-bold ph-x"></i> Limpar Seleção</button>
         </div>
 
-        <div class="flex justify-between items-start mb-5 border-b border-gray-800 pb-3 mt-3">
+        <div class="flex justify-between items-start mb-4 border-b border-gray-800 pb-3 mt-1">
             <div>
                 <h3 class="font-bold text-3xl text-cyan-400 tracking-widest font-mono drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]">${t.id}</h3>
                 <div class="mt-2">${statusRender}</div>
@@ -563,31 +601,42 @@ function renderTelemetry(t) {
             <i class="ph-fill ph-truck text-4xl text-gray-600 drop-shadow-lg"></i>
         </div>
         
-        <div class="grid grid-cols-2 gap-4 mb-5">
-            <div class="border border-cyan-900/60 rounded p-3 bg-black shadow-[inset_0_2px_15px_rgba(34,211,238,0.1)] flex flex-col justify-center items-center">
-                <div class="text-[10px] text-gray-500 uppercase tracking-widest mb-1 flex items-center gap-1"><i class="ph-bold ph-speedometer"></i>Velocidade Global</div>
-                <div class="font-mono text-3xl font-black text-white tracking-wider">${Math.floor(t.speed)} <span class="text-xs text-gray-500 font-bold">km/h</span></div>
+        <div class="grid grid-cols-2 gap-3 mb-4">
+            <div class="border border-cyan-900/60 rounded p-2 bg-black shadow-[inset_0_2px_15px_rgba(34,211,238,0.1)] flex flex-col justify-center items-center">
+                <div class="text-[9px] text-gray-500 uppercase tracking-widest mb-1 flex items-center gap-1"><i class="ph-bold ph-speedometer"></i>Vel. Global</div>
+                <div class="font-mono text-2xl font-black text-white tracking-wider">${Math.floor(t.speed)} <span class="text-[9px] text-gray-500 font-bold">km/h</span></div>
             </div>
-            <div class="border border-purple-900/50 rounded p-3 bg-black shadow-[inset_0_2px_15px_rgba(168,85,247,0.1)] flex flex-col justify-center items-center">
-                <div class="text-[10px] text-gray-500 uppercase tracking-widest mb-1 flex items-center gap-1"><i class="ph-bold ph-thermometer"></i>Compartimento Frio</div>
-                <div class="font-mono text-3xl font-black text-purple-400 tracking-wider drop-shadow-[0_0_5px_rgba(168,85,247,0.5)]">${t.temp.toFixed(1)}<span class="text-xs text-gray-500 font-bold">ºC</span></div>
+            <div class="border border-purple-900/50 rounded p-2 bg-black shadow-[inset_0_2px_15px_rgba(168,85,247,0.1)] flex flex-col justify-center items-center">
+                <div class="text-[9px] text-gray-500 uppercase tracking-widest mb-1 flex items-center gap-1"><i class="ph-bold ph-thermometer"></i>Zona Térmica</div>
+                <div class="font-mono text-2xl font-black text-purple-400 tracking-wider drop-shadow-[0_0_5px_rgba(168,85,247,0.5)]">${t.temp.toFixed(1)}<span class="text-[9px] text-gray-500 font-bold">ºC</span></div>
             </div>
         </div>
 
-        <div class="space-y-4 text-xs font-mono mb-2 bg-[#080808] p-5 rounded-xl border border-gray-800/80 shadow-lg">
+        <div class="space-y-3 pl-3 text-xs font-mono mb-2 bg-[#080808] p-4 rounded-xl border border-gray-800/80 shadow-lg">
+            
             <div class="flex flex-col gap-1.5 group">
                 <div class="flex justify-between items-center">
-                    <span class="text-gray-400 font-bold uppercase tracking-widest flex items-center gap-2 transition-colors"><i class="ph-fill ph-gas-pump text-lg"></i> Nível Energético do Tanque:</span> 
-                    <span class="text-${t.fuel < 20 ? 'red' : 'green'}-400 font-black tracking-wider text-base">${t.fuel.toFixed(1)}%</span>
+                    <span class="text-[9px] text-gray-500 font-bold uppercase tracking-widest flex items-center gap-1 transition-colors"><i class="ph-fill ph-gas-pump text-sm"></i> Nível do Tanque:</span> 
+                    <span class="text-${t.fuel < 20 ? 'red' : 'green'}-400 font-black tracking-wider text-sm">${t.fuel.toFixed(1)}%</span>
                 </div>
-                <div class="w-full bg-gray-900 h-2.5 rounded-full overflow-hidden shadow-inner border border-gray-800">
+                <div class="w-full bg-gray-900 h-1.5 rounded-full overflow-hidden shadow-inner border border-gray-800">
                     <div class="bg-${t.fuel < 20 ? 'red' : 'green'}-500 h-full shadow-[0_0_10px_currentColor]" style="width: ${t.fuel}%"></div>
                 </div>
             </div>
             
-            <div class="flex justify-between items-center pt-3 border-t border-gray-800/80">
-                <span class="text-gray-400 font-bold uppercase tracking-widest flex items-center gap-2"><i class="ph-bold ph-hourglass-high text-lg"></i> ETA Calculado Pelo Motor:</span> 
-                <span class="text-white tracking-widest font-black text-sm bg-gray-800 px-3 py-1 rounded">~${etaMin} min</span>
+            <div class="flex flex-col gap-2 pt-2 border-t border-gray-800/80">
+                <div class="flex justify-between items-center">
+                    <span class="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Tipo de Carga:</span>
+                    ${cargoBadge}
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Valor NF-e:</span>
+                    <span class="text-green-300 font-bold px-2 py-0.5 bg-green-900/20 border border-green-800/50 rounded">R$ ${t.nfValue.toLocaleString('pt-BR')}</span>
+                </div>
+                <div class="flex justify-between items-center pt-2">
+                    <span class="text-[9px] text-gray-400 font-bold uppercase tracking-widest flex items-center gap-1"><i class="ph-bold ph-hourglass-high text-sm"></i> ETA Motor:</span> 
+                    <span class="text-white tracking-widest font-black text-xs bg-gray-800 px-2.5 py-1 rounded">~${etaMin} min</span>
+                </div>
             </div>
         </div>
     `;
@@ -597,6 +646,19 @@ function renderTelemetry(t) {
         telemetryPanel.classList.add('animate-flash-red');
     } else {
         telemetryPanel.classList.remove('animate-flash-red');
+    }
+
+    if(t.status === STATUS.TRAFFIC_DELAY || t.status === STATUS.ROUTE_DEVIATION) {
+        const hways = ['SP-280 (Castello)', 'SP-330 (Anhanguera)', 'SP-348 (Bandeirantes)', 'SP-150 (Anchieta)'];
+        document.getElementById('ai-reroute-msg').innerHTML = `<span class="text-white font-bold tracking-widest">Anomalia viária no ${selectedTruckId}</span> detectada no quadrante logístico. O modelo preditivo traçou uma rota alternativa de evacuação segura utilizando a via <span class="text-yellow-400 font-bold">${hways[Math.floor(Math.random()*hways.length)]}</span>.<br><br>O algoritmo prevê economia de 31% no ETA deste novo desvio. Deseja aplicar o by-pass operacional?`;
+        
+        aiPopup.classList.remove('hidden');
+        setTimeout(() => {
+            aiPopup.classList.remove('opacity-0', '-translate-y-[20px]');
+            aiPopup.classList.add('opacity-100', 'translate-y-0');
+        }, 10);
+    } else {
+        simControls.hideAIPopup();
     }
 }
 
