@@ -662,5 +662,98 @@ function renderTelemetry(t) {
     }
 }
 
+// --- Pitch deck (substitui MANIFESTO.LOG) ---
+const PRESENTATION_MS = 300;
+let presentationState = 0;
+const presentationOverlay = document.getElementById('presentation-overlay');
+const presentationSlideInner = document.getElementById('presentation-slide-inner');
+
+function presentationSlideHtml(slide) {
+    if (slide === 1) {
+        return `
+            <h2 class="presentation-slide-title" style="color:#FFFFFF;">[ 01. MISSÃO: GESTÃO LOGÍSTICA MASSIVA ]</h2>
+            <div class="presentation-topic">
+                <strong>&gt; MONITORAMENTO DE 5.000 ATIVOS</strong>
+                <p>Processamento de telemetria em tempo real para controle total da malha estadual.</p>
+            </div>
+            <div class="presentation-topic">
+                <strong>&gt; GESTÃO DE CARGAS CRÍTICAS</strong>
+                <p>Priorização de insumos hospitalares e cargas de alto valor agregado sob risco.</p>
+            </div>
+            <div class="presentation-topic">
+                <strong>&gt; CENÁRIO: BIG DATA GEOSPATIAL</strong>
+                <p>Ingestão de milhares de coordenadas GPS/segundo em ambiente de alta latência.</p>
+            </div>`;
+    }
+    if (slide === 2) {
+        return `
+            <h2 class="presentation-slide-title" style="color:#00FFFF;">[ 02. PROTOCOLO TÉCNICO DE RESOLUÇÃO ]</h2>
+            <div class="presentation-topic">
+                <strong>&gt; 01. ESCOLHER ARQUITETURA</strong>
+                <p>Implementação de motor WebGL para renderização fluida de 5.000 instâncias gráficas.</p>
+            </div>
+            <div class="presentation-topic">
+                <strong>&gt; 02. OTIMIZAR ROTAS</strong>
+                <p>Algoritmos de predição de ETA e detecção automática de desvios e gargalos viários.</p>
+            </div>
+            <div class="presentation-topic">
+                <strong>&gt; 03. PLANO DE CONTINGÊNCIA</strong>
+                <p>Aplicação de filtros heurísticos para isolamento imediato de emergências operacionais.</p>
+            </div>
+            <div class="presentation-topic">
+                <strong>&gt; 04. RETENÇÃO HISTÓRICA</strong>
+                <p>Análise de Big Data para auditoria de performance e conversão de falhas em KPIs financeiros.</p>
+            </div>`;
+    }
+    return '';
+}
+
+function openPresentationFromIdle() {
+    presentationState = 1;
+    presentationOverlay.classList.add('is-open');
+    presentationOverlay.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('presentation-mode');
+    presentationSlideInner.style.opacity = '0';
+    presentationSlideInner.innerHTML = presentationSlideHtml(1);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            presentationSlideInner.style.opacity = '1';
+        });
+    });
+}
+
+function advancePresentationSlide1To2() {
+    presentationSlideInner.style.opacity = '0';
+    setTimeout(() => {
+        presentationState = 2;
+        presentationSlideInner.innerHTML = presentationSlideHtml(2);
+        presentationSlideInner.style.opacity = '1';
+    }, PRESENTATION_MS);
+}
+
+function closePresentation() {
+    presentationSlideInner.style.opacity = '0';
+    setTimeout(() => {
+        presentationState = 0;
+        presentationSlideInner.innerHTML = '';
+        presentationSlideInner.style.opacity = '1';
+        presentationOverlay.classList.remove('is-open');
+        presentationOverlay.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('presentation-mode');
+    }, PRESENTATION_MS);
+}
+
+function togglePresentationMode() {
+    if (presentationState === 0) {
+        openPresentationFromIdle();
+    } else if (presentationState === 1) {
+        advancePresentationSlide1To2();
+    } else {
+        closePresentation();
+    }
+}
+
+window.togglePresentationMode = togglePresentationMode;
+
 // Start Main Kernel
 map.on('load', () => init());

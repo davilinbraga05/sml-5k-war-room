@@ -26,6 +26,7 @@
     <script src="https://unpkg.com/supercluster@8.0.1/dist/supercluster.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     
     <link rel="stylesheet" href="style.css">
 </head>
@@ -38,8 +39,8 @@
             <div>
                 <h1 class="text-2xl font-bold tracking-widest text-white font-mono flex items-center gap-3">
                     SML-5K <span class="text-logistic text-sm px-2 py-0.5 border border-logistic/30 rounded bg-logistic/10">WAR ROOM</span>
-                    <button onclick="document.getElementById('manifesto-modal').classList.remove('hidden')" class="ml-2 px-3 py-1 bg-[#0a0a0a] border border-gray-700 text-gray-400 text-[9px] uppercase font-mono tracking-widest hover:text-green-400 hover:border-green-500 hover:bg-green-900/20 rounded transition-all flex items-center shadow-inner">
-                        <i class="ph-bold ph-terminal-window mr-1.5 text-sm"></i> manifesto.log
+                    <button type="button" onclick="togglePresentationMode()" class="ml-2 px-3 py-1 bg-[#0a0a0a] border border-cyan-500/80 text-cyan-100/95 text-[9px] uppercase font-mono tracking-widest rounded transition-all duration-300 flex items-center shadow-inner hover:text-cyan-300 hover:border-cyan-400 hover:bg-cyan-950/30 hover:shadow-[0_0_14px_rgba(0,255,255,0.35)]">
+                        <span class="material-icons mr-1.5 leading-none text-[18px]">present_to_all</span> [ APRESENTAÇÃO ]
                     </button>
                 </h1>
                 <p class="text-[10px] text-gray-500 uppercase flex items-center gap-2 tracking-wider mt-1">
@@ -234,83 +235,10 @@
         </div>
     </main>
 
-    <!-- Manifesto Modal Dialog -->
-    <div id="manifesto-modal" class="hidden absolute inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-10">
-        <div class="w-full max-w-4xl bg-[#0a0a0a] border border-green-900/50 rounded-lg shadow-[0_0_50px_rgba(0,255,65,0.1)] h-full max-h-[85vh] flex flex-col overflow-hidden relative">
-            <div class="bg-[#050505] border-b border-green-900/50 p-4 flex justify-between items-center shrink-0">
-                <span class="text-sm text-green-500 font-mono tracking-widest font-bold flex items-center"><i class="ph-fill ph-terminal-window mr-2 text-xl"></i> SML-5K_MANIFESTO_FUNCIONAL.LOG</span>
-                <button onclick="document.getElementById('manifesto-modal').classList.add('hidden')" class="text-gray-500 hover:text-red-500 transition-colors bg-gray-900 hover:bg-red-900/20 px-2 py-1 rounded"><i class="ph-bold ph-x text-lg"></i></button>
-            </div>
-            
-            <div class="p-8 overflow-y-auto custom-scrollbar font-mono text-[13px] leading-relaxed text-gray-400 space-y-8">
-                
-                <!-- Section 1 -->
-                <div>
-                    <h2 class="text-green-400 font-bold text-lg mb-2 flex items-center gap-2 border-b border-gray-800 pb-1">
-                        <span class="text-gray-600">01.</span> Arquitetura de Dados (Motor 5K)
-                    </h2>
-                    <p class="mb-3">A renderização core processa simultaneamente <strong>5.000 ativos terrestres</strong> em tempo real, sem nenhuma técnica de "culling" ou ocultação de polígonos (Zero Culling). O sistema explora limites de GPU Instancing através da engine nativa do <span class="text-cyan-400">Deck.GL (WebGL)</span>.</p>
-                    <ul class="list-disc pl-5 space-y-1.5 marker:text-green-700 text-sm">
-                        <li><strong>Auto-Scaling Dinâmico:</strong> No zoom estadual (`zoom ~6.0`), os objetos caem para um raio mínimo de ~1.5px, gerando o aspecto de "enxame" ou "poeira tecnológica". À medida que a câmera mergulha via scroll/busca, o algoritmo inflaciona as instâncias linearmente para restabelecer o painel de hitboxes (clique).</li>
-                        <li><strong>Geofencing Estrito (Anti-Oceano):</strong> Modelagem balística trava a geração dos trajetos via equação linear costeira de Ubatuba-Iguape (<code class="bg-gray-900 text-yellow-500 px-1 py-0.5 rounded">lat >= 0.52 * lng</code>), sendo matematicamente impossível qualquer frota afundar no Oceano Atlântico.</li>
-                    </ul>
-                </div>
-
-                <!-- Section 2 -->
-                <div>
-                    <h2 class="text-green-400 font-bold text-lg mb-2 flex items-center gap-2 border-b border-gray-800 pb-1">
-                        <span class="text-gray-600">02.</span> Inteligência Logística e Classes de Carga
-                    </h2>
-                    <p class="mb-3">As frotas não são homogêneas; elas processam dados logísticos assíncronos gerados na raiz da simulação com perfis de risco únicos:</p>
-                    <ul class="list-disc pl-5 space-y-1.5 marker:text-green-700 text-sm">
-                        <li><strong><span class="text-cyan-400">10%</span> Perecíveis (Frio):</strong> Representam as classes vitais como Vacinas e Alimentos ❄️ (Notas Fiscais de R$ 40k a 150k).</li>
-                        <li><strong><span class="text-amber-400">5%</span> Alto Valor:</strong> Frotas acompanhadas de escolta armada para Eletrônicos/Luxo 💰 (Notas Fiscais de R$ 200k a 1.5M).</li>
-                        <li><strong>Filtros de Opacidade:</strong> Ao acionar os Toggles na barra de telemetria lateral, a malha rodoviária sofre um colapso óptico ("Fade" para 15% de opacidade e sem contornos), ressaltando exclusivamente em neon a classe de carga que você deseja auditar de ponta a ponta.</li>
-                    </ul>
-                </div>
-
-                <!-- Section 3 -->
-                <div>
-                    <h2 class="text-green-400 font-bold text-lg mb-2 flex items-center gap-2 border-b border-gray-800 pb-1">
-                        <span class="text-gray-600">03.</span> Camada Financeira (Gamificação de Crise)
-                    </h2>
-                    <p class="mb-3">A simulação responde não apenas a falhas técnicas, mas as quantifica de imediato no borderô da operação (Header "Dano Financeiro Acumulado"):</p>
-                    <ul class="list-disc pl-5 space-y-1.5 marker:text-green-700 text-sm">
-                        <li>Cada crise provocada via Controle de Destruição (<code class="bg-red-900/30 text-red-400 px-1 py-0.5 rounded border border-red-900">Gatilho Múltiplo</code> ou <code class="bg-yellow-900/30 text-yellow-400 px-1 py-0.5 rounded border border-yellow-900">Crise Viária</code>) custará instantaneamente <strong class="text-red-500">+ R$ 15.000,00</strong> ao painel, modelando custas reais de guincho, sinistro e SLA estourado.</li>
-                        <li>O sistema também integra um cálculo em background do <strong>OpEx da Frota</strong> x <strong>Economia de Combustível</strong> sempre que um caminhão chega com sucesso e realimenta a lógica (`t.Destination == O.K.`).</li>
-                    </ul>
-                </div>
-
-                <!-- Section 4 -->
-                <div>
-                    <h2 class="text-green-400 font-bold text-lg mb-2 flex items-center gap-2 border-b border-gray-800 pb-1">
-                        <span class="text-gray-600">04.</span> Sistema de Suporte à Decisão (IA de Rota)
-                    </h2>
-                    <p class="mb-3">Quando o usuário intervir manualmente sobre qualquer caminhão atolado em 🛑 <strong>Tráfego Intenso</strong> ou 🟠 <strong>Desvio de Rota</strong>, uma rotina de Inteligência Artificial assume parte do controle cognitivo da cabine.</p>
-                    <ul class="list-disc pl-5 space-y-1.5 marker:text-green-700 text-sm">
-                        <li>Um <strong>Modal Contextual Float/Glassmorphism</strong> emergirá sobre o caminhão notificando uma alternativa preditiva de escoamento rápido (usando lógicas simuladas mapeadas sobre a Castello, Anhanguera, etc.).</li>
-                        <li>Se o operador clicar em <code class="bg-cyan-900/30 text-cyan-400 px-1 rounded border border-cyan-800">Autorizar Desvio</code>, o nó destrói o alvo geográfico antigo do caminhão, injeta uma nova rodovia, reseta o erro pra estabilidade 🟢 e imediatamente curva a linha ciano WebGL desviando do trânsito — uma purificação algorítmica executada em 1 frame.</li>
-                    </ul>
-                </div>
-
-                <!-- Section 5 -->
-                <div>
-                    <h2 class="text-green-400 font-bold text-lg mb-2 flex items-center gap-2 border-b border-gray-800 pb-1">
-                        <span class="text-gray-600">05.</span> Interface e UX (User Experience)
-                    </h2>
-                    <p class="mb-3">O painel foi segmentado para combater a fadiga visual e a síndrome da cegueira por excesso de dados em operadores de Logística e NOCs de Cibersegurança:</p>
-                    <ul class="list-disc pl-5 space-y-1.5 marker:text-green-700 text-sm">
-                        <li><strong>Pilar Esquerdo (Telemetria):</strong> Onde o foco isolado e analítico de um único caminhão prevalece (Temperatura, Velocidade, Combustível, Valor NF-e).</li>
-                        <li><strong>Centro Geopolítico (Mapa Absoluto):</strong> O teatro de operações onde os vetores viajam entre pixels isolados à zoom total.</li>
-                        <li><strong>Pilar Direito (Intervenção):</strong> "Controle de Destruição", "Restart Global" e "Legenda de Eventos" que permite viajar pelo estado clicando nas cores que estão acusando problema.</li>
-                        <li><strong>Rodapé (Linha do Tempo):</strong> Um gráfico <span class="text-logistic">Chart.js de Eficiência Absoluta</span> que flutua a média global da operação a cada tic de servidor (60 segundos lógicos), guardando em bolinhas brancas onde o usuário explodiu a matriz com estressores.</li>
-                    </ul>
-                </div>
-
-                <div class="mt-8 pt-4 border-t border-gray-800 text-center text-gray-600 text-[10px] tracking-widest font-bold">
-                    [ // END OF FILE - SML-5K LOGISTICS KERNEL COMPILED SUCCESSFULLY // ]
-                </div>
-            </div>
+    <div id="presentation-overlay" class="presentation-overlay" onclick="togglePresentationMode()" role="presentation" aria-hidden="true">
+        <div class="presentation-card">
+            <div id="presentation-slide-inner" class="presentation-slide-inner"></div>
+            <p class="presentation-advance-hint">[ CLIQUE PARA AVANÇAR > ]</p>
         </div>
     </div>
 
